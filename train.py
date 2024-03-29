@@ -12,19 +12,21 @@ from mappers import mapper_train, mapper_test, load_pair
 from generator import Generator, generator_loss
 from descriminator import Discriminator, discriminator_loss
 
-DATASET_FOLDER = "facades"
-BUFFER_SIZE = 400
-BATCH_SIZE = 5
+from img_generator import img_pair_gen1
 
-train_dataset = tf.data.Dataset.list_files(DATASET_FOLDER + "/train/*.jpg")
-train_dataset = train_dataset.map(mapper_train, num_parallel_calls=tf.data.AUTOTUNE)
-train_dataset = train_dataset.shuffle(BUFFER_SIZE)
-train_dataset = train_dataset.batch(BATCH_SIZE)
-
-test_dataset = tf.data.Dataset.list_files(DATASET_FOLDER + "/test/*.jpg")
-test_dataset = test_dataset.map(mapper_test)
-test_dataset = test_dataset.batch(BATCH_SIZE)
-
+#DATASET_FOLDER = "facades"
+#BUFFER_SIZE = 400
+#BATCH_SIZE = 5
+#
+#train_dataset = tf.data.Dataset.list_files(DATASET_FOLDER + "/train/*.jpg")
+#train_dataset = train_dataset.map(mapper_train, num_parallel_calls=tf.data.AUTOTUNE)
+#train_dataset = train_dataset.shuffle(BUFFER_SIZE)
+#train_dataset = train_dataset.batch(BATCH_SIZE)
+#
+#test_dataset = tf.data.Dataset.list_files(DATASET_FOLDER + "/test/*.jpg")
+#test_dataset = test_dataset.map(mapper_test)
+#test_dataset = test_dataset.batch(BATCH_SIZE)
+#
 generator = Generator([256, 256, 3], 3)
 discriminator = Discriminator([256, 256, 3])
 
@@ -90,15 +92,15 @@ def fit(train_ds, test_ds, steps):
     start = time.time()
 
     for step, (input_image, target) in train_ds.repeat().take(steps).enumerate():
-        if (step) % 500 == 0:
+        #if (step) % 500 == 0:
+        if (step) % 100 == 0:
 
             if step != 0:
-                print(f'Time taken for 1000 steps: {time.time()-start:.2f} sec\n')
+                print(f'\nTime taken for 100 steps: {time.time()-start:.2f} sec\n')
 
             start = time.time()
 
             generate_images(generator, example_input, example_target)
-            print(f"Step: {step//1000}k")
 
         train_step(input_image, target, step)
 
@@ -106,8 +108,18 @@ def fit(train_ds, test_ds, steps):
         #    print('.', end = '', flush = True)
         print('.', end = '', flush = True)
 
-        if (step + 1) % 500 == 0:
+        if (step + 1) % 100 == 0:
             checkpoint.save(file_prefix = checkpoint_prefix)
 
+def main():
+    BATCH_SIZE = 5
+    dataset = tf.data.Dataset.from_generator(
+        lambda: img_pair_gen1(256, 256),
+        output_signature = (tf.TensorSpec(shape = (256, 256, 3), dtype = tf.float32),
+                            tf.TensorSpec(shape = (256, 256, 3), dtype = tf.float32)))
+    dataset = dataset.batch(BATCH_SIZE)
+
+    fit(dataset, dataset, steps = 4000)
+
 if __name__ == "__main__":
-    fit(train_dataset, test_dataset, steps = 4000)
+    main()
