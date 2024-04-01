@@ -182,10 +182,10 @@ def img_pair_gen1(w, h):
         arcs_imgs_1 = generate_arcs(arcs_coords, w, h, 2)
         imgs_1 = np.concatenate([lines_imgs_1, arcs_imgs_1], axis = 0)
 
+        #lines_imgs_2 = generate_lines(lines_coords, w, h, 5, [3., 3.])
         lines_imgs_2 = generate_lines(lines_coords, w, h, 1)
         arcs_imgs_2 = generate_arcs(arcs_coords, w, h, 5, [3., 3.])
         imgs_2 = np.concatenate([lines_imgs_2, arcs_imgs_2], axis = 0)
-
 
         in_img = (0.5 - np.any(imgs_1, axis = 0)).astype(np.float32) * 2
 

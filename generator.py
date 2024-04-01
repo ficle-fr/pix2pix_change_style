@@ -64,3 +64,19 @@ def generator_loss(disc_generated_output, gen_output, target):
     total_gen_loss = gan_loss + (LAMBDA * l1_loss)
 
     return total_gen_loss, gan_loss, l1_loss
+
+def main():
+    input = tf.keras.layers.Input(shape = [256, 256, 3])
+    conv_layer = tf.keras.layers.Conv2D(64, 3, strides = 2, padding = "same")
+    convt_layer = tf.keras.layers.Conv2DTranspose(64, 3, strides = 1, padding = "same")
+    output = conv_layer(input)
+    output = convt_layer(output)
+    model = tf.keras.models.Model(inputs = input, outputs = output)
+    model.summary()
+
+
+    #generator = Generator([256, 256, 3], 3)
+    #generator.summary()
+
+if __name__ == "__main__":
+    main()

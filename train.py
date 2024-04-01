@@ -7,6 +7,8 @@ import os
 
 from matplotlib import pyplot as plt
 
+from tqdm import tqdm
+
 from mappers import mapper_train, mapper_test, load_pair
 
 from generator import Generator, generator_loss
@@ -37,6 +39,8 @@ summary_writer = tf.summary.create_file_writer(
 
 generator_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
 discriminator_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
+#generator_optimizer = tf.keras.optimizers.Adam(5e-5, beta_1=0.5)
+#discriminator_optimizer = tf.keras.optimizers.Adam(5e-5, beta_1=0.5)
 
 checkpoint_dir = './training_checkpoints'
 checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
@@ -61,7 +65,8 @@ def generate_images(model, test_input, tar):
     plt.show()
 
 @tf.function
-def train_step(input_image, target, step):
+#def train_step(input_image, target, step):
+def train_step(input_image, target):
     with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
         gen_output = generator(input_image, training = True)
 
@@ -81,35 +86,23 @@ def train_step(input_image, target, step):
     discriminator_optimizer.apply_gradients(zip(discriminator_gradients,
                                                 discriminator.trainable_variables))
 
-    with summary_writer.as_default():
-        tf.summary.scalar('gen_total_loss', gen_total_loss, step = step//1000)
-        tf.summary.scalar('gen_gan_loss', gen_gan_loss, step = step//1000)
-        tf.summary.scalar('gen_l1_loss', gen_l1_loss, step = step//1000)
-        tf.summary.scalar('disc_loss', disc_loss, step = step//1000)
+    #with summary_writer.as_default():
+    #    tf.summary.scalar('gen_total_loss', gen_total_loss, step = step//1000)
+    #    tf.summary.scalar('gen_gan_loss', gen_gan_loss, step = step//1000)
+    #    tf.summary.scalar('gen_l1_loss', gen_l1_loss, step = step//1000)
+    #    tf.summary.scalar('disc_loss', disc_loss, step = step//1000)
 
-def fit(train_ds, test_ds, steps):
+def fit(train_ds, test_ds, epochs, steps_in_epoch):
     example_input, example_target = next(iter(test_ds.take(1)))
     start = time.time()
 
-    for step, (input_image, target) in train_ds.repeat().take(steps).enumerate():
-        #if (step) % 500 == 0:
-        if (step) % 100 == 0:
-
-            if step != 0:
-                print(f'\nTime taken for 100 steps: {time.time()-start:.2f} sec\n')
-
-            start = time.time()
-
-            generate_images(generator, example_input, example_target)
-
-        train_step(input_image, target, step)
-
-        #if (step+1) % 10 == 0:
-        #    print('.', end = '', flush = True)
-        print('.', end = '', flush = True)
-
-        if (step + 1) % 100 == 0:
-            checkpoint.save(file_prefix = checkpoint_prefix)
+    for _ in range(epochs):
+        start = time.time()
+        for input_image, target in tqdm(train_ds.take(steps_in_epoch), total = steps_in_epoch):
+            train_step(input_image, target)
+        checkpoint.save(file_prefix = checkpoint_prefix)
+        print(f'\nTime taken for 1 epoch: {time.time()-start:.2f} sec\n')
+        generate_images(generator, example_input, example_target)
 
 def main():
     BATCH_SIZE = 5
@@ -119,7 +112,8 @@ def main():
                             tf.TensorSpec(shape = (256, 256, 3), dtype = tf.float32)))
     dataset = dataset.batch(BATCH_SIZE)
 
-    fit(dataset, dataset, steps = 4000)
+    #fit(dataset, dataset, 40, 100)
+    fit(dataset, dataset, 40, 100)
 
 if __name__ == "__main__":
     main()
