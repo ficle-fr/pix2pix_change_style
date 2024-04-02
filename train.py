@@ -1,7 +1,6 @@
 import tensorflow as tf
 import numpy as np
 
-import datetime
 import time
 import os
 
@@ -9,45 +8,11 @@ from matplotlib import pyplot as plt
 
 from tqdm import tqdm
 
-from mappers import mapper_train, mapper_test, load_pair
-
 from generator import Generator, generator_loss
 from descriminator import Discriminator, discriminator_loss
 
 from img_generator import img_pair_gen1
 
-#DATASET_FOLDER = "facades"
-#BUFFER_SIZE = 400
-#BATCH_SIZE = 5
-#
-#train_dataset = tf.data.Dataset.list_files(DATASET_FOLDER + "/train/*.jpg")
-#train_dataset = train_dataset.map(mapper_train, num_parallel_calls=tf.data.AUTOTUNE)
-#train_dataset = train_dataset.shuffle(BUFFER_SIZE)
-#train_dataset = train_dataset.batch(BATCH_SIZE)
-#
-#test_dataset = tf.data.Dataset.list_files(DATASET_FOLDER + "/test/*.jpg")
-#test_dataset = test_dataset.map(mapper_test)
-#test_dataset = test_dataset.batch(BATCH_SIZE)
-#
-generator = Generator([256, 256, 3], 3)
-discriminator = Discriminator([256, 256, 3])
-
-log_dir="logs/"
-
-summary_writer = tf.summary.create_file_writer(
-    log_dir + "fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
-
-generator_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
-discriminator_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
-#generator_optimizer = tf.keras.optimizers.Adam(5e-5, beta_1=0.5)
-#discriminator_optimizer = tf.keras.optimizers.Adam(5e-5, beta_1=0.5)
-
-checkpoint_dir = './training_checkpoints'
-checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
-checkpoint = tf.train.Checkpoint(generator_optimizer = generator_optimizer,
-                                 discriminator_optimizer = discriminator_optimizer,
-                                 generator = generator,
-                                 discriminator = discriminator)
 
 def generate_images(model, test_input, tar):
     prediction = model(test_input, training=True)
@@ -65,8 +30,8 @@ def generate_images(model, test_input, tar):
     plt.show()
 
 @tf.function
-#def train_step(input_image, target, step):
-def train_step(input_image, target):
+def train_step(generator, discriminator, generator_optimizer, discriminator_optimizer,
+               input_image, target):
     with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
         gen_output = generator(input_image, training = True)
 
@@ -92,19 +57,40 @@ def train_step(input_image, target):
     #    tf.summary.scalar('gen_l1_loss', gen_l1_loss, step = step//1000)
     #    tf.summary.scalar('disc_loss', disc_loss, step = step//1000)
 
-def fit(train_ds, test_ds, epochs, steps_in_epoch):
+def fit(generator, discriminaror, generator_optimizer, discriminator_optimizer, 
+        train_ds, test_ds, epochs, steps_in_epoch, after_each_epoch_callback):
     example_input, example_target = next(iter(test_ds.take(1)))
+    generate_images(generator, example_input, example_target)
     start = time.time()
 
     for _ in range(epochs):
         start = time.time()
         for input_image, target in tqdm(train_ds.take(steps_in_epoch), total = steps_in_epoch):
-            train_step(input_image, target)
-        checkpoint.save(file_prefix = checkpoint_prefix)
+            train_step(generator, discriminaror, generator_optimizer, discriminator_optimizer, input_image, target)
         print(f'\nTime taken for 1 epoch: {time.time()-start:.2f} sec\n')
         generate_images(generator, example_input, example_target)
+        after_each_epoch_callback()
 
 def main():
+    generator = Generator([256, 256, 3], 3)
+    discriminator = Discriminator([256, 256, 3])
+
+    generator_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
+    discriminator_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1=0.5)
+    #generator_optimizer = tf.keras.optimizers.Adam(5e-5, beta_1=0.5)
+    #discriminator_optimizer = tf.keras.optimizers.Adam(5e-5, beta_1=0.5)
+
+    checkpoint_dir = './training_checkpoints'
+    checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
+    checkpoint = tf.train.Checkpoint(generator_optimizer = generator_optimizer,
+                                     discriminator_optimizer = discriminator_optimizer,
+                                     generator = generator,
+                                     discriminator = discriminator)
+    checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
+    def checkpoint_callback():
+        checkpoint.save(file_prefix = checkpoint_prefix)
+
+
     BATCH_SIZE = 5
     dataset = tf.data.Dataset.from_generator(
         lambda: img_pair_gen1(256, 256),
@@ -113,7 +99,8 @@ def main():
     dataset = dataset.batch(BATCH_SIZE)
 
     #fit(dataset, dataset, 40, 100)
-    fit(dataset, dataset, 40, 100)
+    fit(generator, discriminator, generator_optimizer, discriminator_optimizer,
+        dataset, dataset, 40, 50, checkpoint_callback)
 
 if __name__ == "__main__":
     main()
