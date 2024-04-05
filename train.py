@@ -99,8 +99,10 @@ def main():
     dataset = dataset.batch(BATCH_SIZE)
 
     #fit(dataset, dataset, 40, 100)
+    #fit(generator, discriminator, generator_optimizer, discriminator_optimizer,
+    #    dataset, dataset, 40, 50, checkpoint_callback)
     fit(generator, discriminator, generator_optimizer, discriminator_optimizer,
-        dataset, dataset, 40, 50, checkpoint_callback)
+        dataset, dataset, 2, 10, checkpoint_callback)
 
 if __name__ == "__main__":
     main()
