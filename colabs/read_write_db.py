@@ -9,7 +9,7 @@ from img_generator import img_pair_gen1
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("-n", dest = "number", default = 10,
+    parser.add_argument("-n", dest = "number", default = 10, type = int,
                         help = "Number of examples")
     parser.add_argument("-w", dest = "write_to", default = None,
                         help = "Write to file")
@@ -21,8 +21,8 @@ def main():
         write(args.write_to, args.number)
 
     elif args.read_from is not None:
-        read(args.read_from)
-        for _, data_batch in zip(args.number, dataset.map(mapper)):
+        dataset = read(args.read_from)
+        for _, data_batch in zip(range(args.number), dataset):
             print(data_batch)
 
 def write(file, number):
@@ -54,6 +54,7 @@ def read(file):
             })
         return tf.io.parse_tensor(parsed_tensors["i"], tf.float32),\
                tf.io.parse_tensor(parsed_tensors["o"], tf.float32)
+    return dataset.map(mapper)
 
 if __name__ == "__main__":
     main()
